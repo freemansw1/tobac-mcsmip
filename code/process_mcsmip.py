@@ -42,7 +42,7 @@ def main() -> None:
 
     if season == "winter":
         dates = pd.date_range(datetime(2020, 1, 20), datetime(2020, 2, 28), freq="D")
-        for MCS in data_formats.summer_datasets:
+        for MCS in data_formats.winter_datasets:
             if MCS.name == model:
                 break
         else:
