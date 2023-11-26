@@ -16,17 +16,21 @@ class MCS_dataset:
     has_summer: bool
     has_winter: bool
 
-    def glob_date(self, path: pathlib.Path, season: str, date: datetime) -> list[pathlib.Path]:
+    def glob_date(
+        self, path: pathlib.Path, season: str, date: datetime
+    ) -> list[pathlib.Path]:
         if season == "summer":
-            if not self.has_summer: 
+            if not self.has_summer:
                 raise ValueError(f"Summer not available for model {self.name}")
         elif season == "winter":
-            if not self.has_winter: 
+            if not self.has_winter:
                 raise ValueError(f"Winter not available for model {self.name}")
         else:
             raise ValueError("Season must be one of ['summer', 'winter']")
-        
-        glob_str = f"{season}/{self.name}/{self.file_prefix}*{date.strftime('%Y%m%d')}*.nc"
+
+        glob_str = (
+            f"{season}/{self.name}/{self.file_prefix}*{date.strftime('%Y%m%d')}*.nc"
+        )
         return sorted(list(path.glob(glob_str)))
 
 
