@@ -24,6 +24,12 @@ parser.add_argument(
     "-s", help="path to save output data", default="../data_out", type=str
 )
 
+args = parser.parse_args()
+model = args.model
+season = args.season
+data_path = pathlib.Path(args.d)
+save_path = pathlib.Path(args.s)
+
 
 def main() -> None:
     if season == "summer":
@@ -42,9 +48,7 @@ def main() -> None:
         else:
             raise ValueError(f"model {model} not found for season {season}")
 
-    files = sorted(
-        sum([MCS.glob_date(data_path, "winter", date) for date in dates], [])
-    )
+    files = sorted(sum([MCS.glob_date(data_path, season, date) for date in dates], []))
     print(datetime.now(), f"Loading {len(files)} files", flush=True)
     ds = xr.open_mfdataset(files, combine="nested", concat_dim=MCS.time_dim)
     ds = ds.assign_coords({MCS.time_dim: ds[MCS.time_dim].astype("datetime64[s]")})
@@ -174,12 +178,6 @@ def main() -> None:
 if __name__ == "__main__":
     start_time = datetime.now()
     print(start_time, "Commencing MCS detection", flush=True)
-
-    args = parser.parse_args()
-    model = args.model
-    season = args.season
-    data_path = pathlib.Path(args.d)
-    save_path = pathlib.Path(args.s)
     if not save_path.exists():
         save_path.mkdir()
 
