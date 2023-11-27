@@ -212,7 +212,9 @@ def main() -> None:
     # Add compression encoding
     comp = dict(zlib=True, complevel=5, shuffle=True)
     for var in out_ds.data_vars:
-        out_ds[var].encoding.update(comp)
+        var_type = out_ds[var].dtype
+        if np.issubdtype(var_type, np.integer) or np.issubdtype(var_type, np.floating):
+            out_ds[var].encoding.update(comp)
 
     out_ds.to_netcdf(save_path / f"tobac_{model}_{season}_MCS_mask_file.nc")
 
