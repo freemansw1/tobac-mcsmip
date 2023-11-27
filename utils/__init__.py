@@ -1,3 +1,4 @@
+from typing import Callable
 import numpy as np
 import pandas as pd
 import xarray as xr
@@ -27,13 +28,13 @@ def get_tb(olr):
     return tb
 
 
-def calc_area_and_precip(tracks, segments, ds, MCS):
+def calc_area_and_precip(features, segments, ds, MCS, inplace=False):
     """Calculate the area, maximum precip rate and total precip volume for each
     feature
 
     Parameters
     ----------
-    tracks : _type_
+    features : _type_
         _description_
     segments : _type_
         _description_
@@ -47,48 +48,52 @@ def calc_area_and_precip(tracks, segments, ds, MCS):
     tracks
         _description_
     """
+    if not inplace:
+        features = features.copy()
+
     # Get area array and calculate area of each segment
-    segments.coord("latitude").guess_bounds()
-    segments.coord("longitude").guess_bounds()
-    area = area_weights(segments, normalize=False)
+    segment_slice = segments[0]
+    segment_slice.coord("latitude").guess_bounds()
+    segment_slice.coord("longitude").guess_bounds()
+    area = area_weights(segment_slice, normalize=False)
 
-    tracks["area"] = np.nan
-    tracks["max_precip"] = np.nan
-    tracks["total_precip"] = np.nan
+    features["area"] = np.nan
+    features["max_precip"] = np.nan
+    features["total_precip"] = np.nan
 
-    features_t = xr.CFTimeIndex(tracks["time"].to_numpy()).to_datetimeindex()
-    for time, mask in zip(ds.time.data, segments.slices_over("time")):
+    features_t = xr.CFTimeIndex(features["time"].to_numpy()).to_datetimeindex()
+    for time, mask in zip(ds[MCS.time_dim].data, segments.slices_over("time")):
         wh = features_t == time
         if np.any(wh):
             feature_areas = labeled_comprehension(
-                area, mask.data, tracks[wh]["feature"], np.sum, area.dtype, np.nan
+                area, mask.data, features[wh]["feature"], np.sum, area.dtype, np.nan
             )
-            tracks.loc[wh, "area"] = feature_areas
+            features.loc[wh, "area"] = feature_areas
 
             step_precip = ds[MCS.precip_var].sel({MCS.time_dim: time}).values
             max_precip = labeled_comprehension(
                 step_precip,
                 mask.data,
-                tracks[wh]["feature"],
+                features[wh]["feature"],
                 np.max,
                 area.dtype,
                 np.nan,
             )
 
-            tracks.loc[wh, "max_precip"] = max_precip
+            features.loc[wh, "max_precip"] = max_precip
 
             feature_precip = labeled_comprehension(
                 area * step_precip,
                 mask.data,
-                tracks[wh]["feature"],
+                features[wh]["feature"],
                 np.sum,
                 area.dtype,
                 np.nan,
             )
 
-            tracks.loc[wh, "total_precip"] = feature_precip
+            features.loc[wh, "total_precip"] = feature_precip
 
-    return tracks
+    return features
 
 
 def max_consecutive_true(condition: np.ndarray[bool]) -> int:
@@ -145,11 +150,11 @@ def is_track_mcs(features: pd.DataFrame) -> pd.DataFrame:
     max_total_precip = features.groupby("track").apply(
         lambda df: df.groupby("time").total_precip.sum().max()
     )
-    result = np.logical_and.reduce(
+    is_mcs = np.logical_and.reduce(
         [
             consecutive_precip_max >= 4,
             consecutive_area_max >= 4,
             max_total_precip >= 2e10,
         ]
     )
-    return pd.DataFrame(data=result, index=consecutive_precip_max.index)
+    return pd.DataFrame(data=is_mcs, index=consecutive_precip_max.index)

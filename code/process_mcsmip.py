@@ -73,6 +73,7 @@ def main() -> None:
         statistics={"feature_min_BT": np.nanmin},
     )
 
+    # Convert feature_min_BT to float dtype as the default of 'None' means that it will be an object array
     features["feature_min_BT"] = features["feature_min_BT"].to_numpy().astype(float)
 
     print(datetime.now(), f"Commencing tracking", flush=True)
@@ -100,7 +101,6 @@ def main() -> None:
     print(datetime.now(), f"Calculating merges and splits", flush=True)
     merges = tobac.merge_split.merge_split_MEST(features, dxy, frame_len=1)
 
-    features = features.copy()
     features["track"] = merges.feature_parent_track_id.data.astype(np.int64) + 1
 
     track_start_time = features.groupby("track").time.min()
@@ -117,7 +117,7 @@ def main() -> None:
     )
 
     print(datetime.now(), f"Processing MCS properties", flush=True)
-    features = calc_area_and_precip(features, segments, ds, MCS)
+    features = calc_area_and_precip(features, segments, ds, MCS, inplace=True)
 
     mcs_flag = is_track_mcs(features)
 

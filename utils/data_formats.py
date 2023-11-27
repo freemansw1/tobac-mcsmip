@@ -34,7 +34,6 @@ class MCS_dataset:
         else:
             raise ValueError("Season must be one of ['summer', 'winter']")
 
-        
         return sorted(list(path.glob(glob_str)))
 
 
