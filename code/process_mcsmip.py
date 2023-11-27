@@ -198,8 +198,14 @@ def main() -> None:
 
     out_ds.assign_attrs(
         title=f"{season} {model} MCS mask file",
+        model=f"{model}",
+        season=f"{season}",
         tracker="tobac",
         version=f"{tobac.__version__}",
+        feature_detection_parameters='threshold=[241, 233, 225], n_min_threshold=10, target="minimum", position_threshold="weighted_diff", PBC_flag="hdim_2", statistics={"feature_min_BT": np.nanmin}',
+        tracking_parameters='v_max=1e2, method_linking="predict", adaptive_stop=0.2, adaptive_step=0.95, stubs=3, PBC_flag="hdim_2", min_h2=0, max_h2=3600,',
+        segmentation_parameters='threshold=241, target="minimum", PBC_flag="hdim_2",',
+        merge_split_parameters="frame_len=1,",
         created_on=f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
     )
 
