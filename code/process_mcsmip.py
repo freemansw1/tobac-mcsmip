@@ -153,9 +153,48 @@ def main() -> None:
     )
     mcs_feature_labels.name = "mcs_feature_labels"
 
+    # Map feature labels to cells and tracks
+    all_cell_labels = all_feature_labels.copy()
+    all_cell_labels.name = "all_cell_labels"
+    all_track_labels = all_feature_labels.copy()
+    all_track_labels.name = "all_track_labels"
+
+    wh_all_labels = np.flatnonzero(all_feature_labels)
+
+    all_cell_labels.data.ravel()[wh_all_labels] = out_ds.feature_cell_id.loc[
+        all_feature_labels.data.ravel()[wh_all_labels]
+    ]
+    all_track_labels.data.ravel()[wh_all_labels] = out_ds.feature_track_id.loc[
+        all_feature_labels.data.ravel()[wh_all_labels]
+    ]
+
+    mcs_cell_labels = mcs_feature_labels.copy()
+    mcs_cell_labels.name = "mcs_cell_labels"
+    mcs_track_labels = mcs_feature_labels.copy()
+    mcs_track_labels.name = "mcs_track_labels"
+
+    wh_mcs_labels = np.flatnonzero(mcs_feature_labels)
+
+    mcs_cell_labels.data.ravel()[wh_mcs_labels] = out_ds.feature_cell_id.loc[
+        mcs_feature_labels.data.ravel()[wh_mcs_labels]
+    ]
+    mcs_track_labels.data.ravel()[wh_mcs_labels] = out_ds.feature_track_id.loc[
+        mcs_feature_labels.data.ravel()[wh_mcs_labels]
+    ]
+
     out_ds = out_ds.assign_coords(all_feature_labels.coords)
 
-    out_ds = xr.merge([out_ds, all_feature_labels, mcs_feature_labels])
+    out_ds = xr.merge(
+        [
+            out_ds,
+            all_feature_labels,
+            mcs_feature_labels,
+            all_cell_labels,
+            mcs_cell_labels,
+            all_track_labels,
+            mcs_track_labels,
+        ]
+    )
 
     out_ds.assign_attrs(
         title=f"{season} {model} MCS mask file",
