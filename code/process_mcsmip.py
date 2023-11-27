@@ -50,7 +50,9 @@ def main() -> None:
 
     files = sorted(sum([MCS.glob_date(data_path, season, date) for date in dates], []))
     print(datetime.now(), f"Loading {len(files)} files", flush=True)
-    ds = xr.open_mfdataset(files, combine="nested", concat_dim=MCS.time_dim)
+    ds = xr.open_mfdataset(
+        files, combine="nested", concat_dim=MCS.time_dim, join="override"
+    )
     ds = ds.assign_coords({MCS.time_dim: ds[MCS.time_dim].astype("datetime64[s]")})
 
     if MCS.convert_olr:
