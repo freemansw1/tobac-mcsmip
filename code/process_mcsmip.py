@@ -113,7 +113,7 @@ def main() -> None:
     )
     merges = tobac.merge_split.merge_split_MEST(features, dxy, **merge_params)
 
-    features["track"] = merges.feature_parent_track_id.data.astype(np.int64) + 1
+    features["track"] = merges.feature_parent_track_id.data.astype(np.int64)
 
     track_start_time = features.groupby("track").time.min()
     features["time_track"] = features.time - track_start_time[features.track].to_numpy()
