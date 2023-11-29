@@ -64,35 +64,37 @@ def main() -> None:
     dxy = 11100  # in meter (for Latitude)
 
     print(datetime.now(), f"Commencing feature detection", flush=True)
-    features = tobac.feature_detection_multithreshold(
-        bt,
-        dxy=dxy,
+    feature_detection_params = dict(
         threshold=[241, 233, 225],
         n_min_threshold=10,
         target="minimum",
         position_threshold="weighted_diff",
         PBC_flag="hdim_2",
-        statistics={"feature_min_BT": np.nanmin},
+        statistic={"feature_min_BT": np.nanmin},
+    )
+    features = tobac.feature_detection_multithreshold(
+        bt,
+        dxy=dxy,
+        **feature_detection_params,
     )
 
     # Convert feature_min_BT to float dtype as the default of 'None' means that it will be an object array
     features["feature_min_BT"] = features["feature_min_BT"].to_numpy().astype(float)
 
     print(datetime.now(), f"Commencing tracking", flush=True)
-    features = tobac.linking_trackpy(
-        features,
-        bt,
-        dt,
-        dxy,
+    tracking_params = dict(
         v_max=1e2,
         method_linking="predict",
         adaptive_stop=0.2,
         adaptive_step=0.95,
         stubs=3,
         PBC_flag="hdim_2",
+        min_h1=0,
+        max_h1=1200,
         min_h2=0,
         max_h2=3600,
     )
+    features = tobac.linking_trackpy(features, bt, dt, dxy, **tracking_params)
 
     # Reduce tracks to only valid cells
     features = features[features.cell != -1]
@@ -101,7 +103,15 @@ def main() -> None:
     features = features[np.isin(features.cell, valid_cells)]
 
     print(datetime.now(), f"Calculating merges and splits", flush=True)
-    merges = tobac.merge_split.merge_split_MEST(features, dxy, frame_len=1)
+    merge_params = dict(
+        frame_len=1,
+        PBC_flag="hdim_2",
+        min_h1=0,
+        max_h1=1200,
+        min_h2=0,
+        max_h2=3600,
+    )
+    merges = tobac.merge_split.merge_split_MEST(features, dxy, **merge_params)
 
     features["track"] = merges.feature_parent_track_id.data.astype(np.int64) + 1
 
@@ -109,14 +119,13 @@ def main() -> None:
     features["time_track"] = features.time - track_start_time[features.track].to_numpy()
 
     print(datetime.now(), f"Commencing segmentation", flush=True)
+    segmentation_params = dict(threshold=241, target="minimum", PBC_flag="hdim_2")
     warnings.filterwarnings(
         "ignore",
         category=UserWarning,
         message="Warning: converting a masked element to nan.*",
     )
-    segments, features = tobac.segmentation_2D(
-        features, bt, dxy, threshold=241, target="minimum", PBC_flag="hdim_2"
-    )
+    segments, features = tobac.segmentation_2D(features, bt, dxy, **segmentation_params)
 
     print(datetime.now(), f"Processing MCS properties", flush=True)
     features = calc_area_and_precip(features, segments, ds, MCS, inplace=True)
@@ -204,10 +213,10 @@ def main() -> None:
         season=f"{season}",
         tracker="tobac",
         version=f"{tobac.__version__}",
-        feature_detection_parameters='threshold=[241, 233, 225], n_min_threshold=10, target="minimum", position_threshold="weighted_diff", PBC_flag="hdim_2", statistics={"feature_min_BT": np.nanmin}',
-        tracking_parameters='v_max=1e2, method_linking="predict", adaptive_stop=0.2, adaptive_step=0.95, stubs=3, PBC_flag="hdim_2", min_h2=0, max_h2=3600,',
-        segmentation_parameters='threshold=241, target="minimum", PBC_flag="hdim_2",',
-        merge_split_parameters="frame_len=1,",
+        feature_detection_parameters=str(feature_detection_params),
+        tracking_parameters=str(tracking_params),
+        segmentation_parameters=str(segmentation_params),
+        merge_split_parameters=str(merge_params),
         created_on=f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
     )
 

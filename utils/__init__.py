@@ -1,4 +1,4 @@
-from typing import Callable
+import warnings
 import numpy as np
 import pandas as pd
 import xarray as xr
@@ -55,6 +55,11 @@ def calc_area_and_precip(features, segments, ds, MCS, inplace=False):
     segment_slice = segments[0]
     segment_slice.coord("latitude").guess_bounds()
     segment_slice.coord("longitude").guess_bounds()
+    warnings.filterwarnings(
+        "ignore",
+        category=UserWarning,
+        message="Using DEFAULT_SPHERICAL_EARTH_RADIUS*",
+    )
     area = area_weights(segment_slice, normalize=False)
 
     features["area"] = np.nan
