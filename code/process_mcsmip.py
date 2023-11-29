@@ -104,6 +104,7 @@ def main() -> None:
 
     print(datetime.now(), f"Calculating merges and splits", flush=True)
     merge_params = dict(
+        distance=dxy*10,
         frame_len=1,
         PBC_flag="hdim_2",
         min_h1=0,
@@ -155,6 +156,11 @@ def main() -> None:
     feature_is_mcs = out_ds.track_is_mcs.loc[out_ds.feature_track_id]
 
     out_ds["feature_is_mcs"] = feature_is_mcs
+    out_ds["cell_track_id"] = merges.cell_parent_track_id
+    out_ds["track_child_cell_count"] = merges.track_child_cell_count
+    out_ds["cell_child_feature_count"] = merges.cell_child_feature_count
+    out_ds["cell_starts_with_split"] = merges.cell_starts_with_split
+    out_ds["cell_ends_with_merge"] = merges.cell_ends_with_merge
 
     all_feature_labels = xr.DataArray.from_iris(segments)
     all_feature_labels.name = "all_feature_labels"
@@ -207,7 +213,7 @@ def main() -> None:
         ]
     )
 
-    out_ds.assign_attrs(
+    out_ds = out_ds.assign_attrs(
         title=f"{season} {model} MCS mask file",
         model=f"{model}",
         season=f"{season}",
