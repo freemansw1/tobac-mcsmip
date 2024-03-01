@@ -23,13 +23,13 @@ class MCS_dataset:
             if not self.has_summer:
                 raise ValueError(f"Summer not available for model {self.name}")
             glob_str = (
-                f"Summer/{self.name}/{self.file_prefix}*{date.strftime('%Y%m%d')}*.nc"
+                f"Summer/{self.name}/{self.file_prefix}*{date.strftime('%Y%m%d%H')}*.nc"
             )
         elif season == "winter":
             if not self.has_winter:
                 raise ValueError(f"Winter not available for model {self.name}")
             glob_str = (
-                f"Winter/{self.name}/{self.file_prefix}*{date.strftime('%Y%m%d')}*.nc"
+                f"Winter/{self.name}/{self.file_prefix}*{date.strftime('%Y%m%d%H')}*.nc"
             )
         else:
             raise ValueError("Season must be one of ['summer', 'winter']")

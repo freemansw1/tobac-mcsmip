@@ -33,7 +33,7 @@ save_path = pathlib.Path(args.s)
 
 def main() -> None:
     if season == "summer":
-        dates = pd.date_range(datetime(2016, 8, 1), datetime(2016, 9, 9), freq="D")
+        dates = pd.date_range(datetime(2016, 8, 1), datetime(2016, 9, 9), freq="h")
         for MCS in data_formats.summer_datasets:
             if MCS.name == model:
                 break
@@ -41,7 +41,7 @@ def main() -> None:
             raise ValueError(f"model {model} not found for season {season}")
 
     if season == "winter":
-        dates = pd.date_range(datetime(2020, 1, 20), datetime(2020, 2, 28), freq="D")
+        dates = pd.date_range(datetime(2020, 1, 20), datetime(2020, 2, 28), freq="h")
         for MCS in data_formats.winter_datasets:
             if MCS.name == model:
                 break
@@ -58,7 +58,7 @@ def main() -> None:
     if MCS.convert_olr:
         bt = get_tb(ds[MCS.bt_var].compute()).to_iris()
     else:
-        bt = ds[MCS.bt_var].compute().to_iris()
+        bt = ds[MCS.bt_var].roll({"lon":1500}, roll_coords=True).compute().to_iris()
 
     dt = 3600  # in seconds
     dxy = 11100  # in meter (for Latitude)
