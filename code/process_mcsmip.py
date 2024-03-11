@@ -250,6 +250,8 @@ def main() -> None:
         segmentation_parameters=str(parameters_segments),
         merge_split_parameters=str(parameters_merge),
         created_on=f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+        creator="William K Jones",
+        history="Dataset produced using _tobac_ on the JASMIN HPC system"
     )
 
     # Add compression encoding
