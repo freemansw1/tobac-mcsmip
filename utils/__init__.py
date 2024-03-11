@@ -3,7 +3,8 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 from iris.analysis.cartography import area_weights
-from scipy.ndimage import labeled_comprehension
+import tobac
+from tobac.utils.periodic_boundaries import weighted_circmean
 
 
 def get_tb(olr):
@@ -61,45 +62,44 @@ def calc_area_and_precip(features, segments, ds, MCS, inplace=False):
         message="Using DEFAULT_SPHERICAL_EARTH_RADIUS*",
     )
     area = area_weights(segment_slice, normalize=False)
+    area = xr.DataArray(area, coords=dict(lat=ds.lat, lon=ds.lon), dims=["lat", "lon"])
+
+    precip = ds[MCS.precip_var]
 
     features["area"] = np.nan
     features["max_precip"] = np.nan
     features["total_precip"] = np.nan
 
-    features_t = xr.CFTimeIndex(features["time"].to_numpy()).to_datetimeindex()
-    for time, mask in zip(ds[MCS.time_dim].data, segments.slices_over("time")):
-        wh = features_t == time
-        if np.any(wh):
-            feature_areas = labeled_comprehension(
-                area, mask.data, features[wh]["feature"], np.sum, area.dtype, np.nan
-            )
-            features.loc[wh, "area"] = feature_areas
-
-            step_precip = ds[MCS.precip_var].sel({MCS.time_dim: time}).values
-            max_precip = labeled_comprehension(
-                step_precip,
-                mask.data,
-                features[wh]["feature"],
-                np.max,
-                area.dtype,
-                np.nan,
-            )
-
-            features.loc[wh, "max_precip"] = max_precip
-
-            feature_precip = labeled_comprehension(
-                area * step_precip,
-                mask.data,
-                features[wh]["feature"],
-                np.sum,
-                area.dtype,
-                np.nan,
-            )
-
-            features.loc[wh, "total_precip"] = feature_precip
+    features = tobac.utils.bulk_statistics.get_statistics_from_mask(
+    features, segments, area, statistic=dict(area=np.nansum), default=np.nan
+    )
+    features = tobac.utils.bulk_statistics.get_statistics_from_mask(
+        features, segments, precip, statistic=dict(max_precip=np.nanmax), default=np.nan
+    )
+    features = tobac.utils.bulk_statistics.get_statistics_from_mask(
+        features, segments, precip * area.values, statistic=dict(total_precip=np.nansum), default=np.nan
+    )
 
     return features
 
+def process_clusters(tracks):
+    groupby_order = ["frame", "track"]
+    tracks["cluster"] = (tracks.groupby(groupby_order).feature.cumcount()[tracks.sort_values(groupby_order).index]==0).cumsum().sort_index()
+    
+    gb_clusters = tracks.groupby("cluster")
+    
+    clusters = gb_clusters.track.first().to_frame().rename(columns=dict(track="cluster_track_id"))
+    
+    clusters["cluster_time"] = gb_clusters.time.first().to_numpy()
+    
+    clusters["cluster_longitude"] = gb_clusters.apply(lambda x:weighted_circmean(x.longitude.to_numpy(), x.area.to_numpy(), low=0, high=360), include_groups=False)
+    clusters["cluster_latitude"] = gb_clusters.apply(lambda x:np.average(x.latitude.to_numpy(), weights=x.area.to_numpy()), include_groups=False)
+    
+    clusters["cluster_area"] = gb_clusters.area.sum().to_numpy()
+    clusters["cluster_max_precip"] = gb_clusters.max_precip.max().to_numpy()
+    clusters["cluster_total_precip"] = gb_clusters.total_precip.sum().to_numpy()
+    
+    return tracks, clusters
 
 def max_consecutive_true(condition: np.ndarray[bool]) -> int:
     """Return the maximum number of consecutive True values in 'condition'
@@ -114,6 +114,8 @@ def max_consecutive_true(condition: np.ndarray[bool]) -> int:
     int
         the maximum number of consecutive True values in 'condition'
     """
+    if isinstance(condition, pd.Series):
+        condition = condition.to_numpy()
     if np.any(condition):
         return np.max(
             np.diff(
@@ -129,7 +131,7 @@ def max_consecutive_true(condition: np.ndarray[bool]) -> int:
         return 0
 
 
-def is_track_mcs(features: pd.DataFrame) -> pd.DataFrame:
+def is_track_mcs(clusters: pd.DataFrame) -> pd.DataFrame:
     """Test whether each track in features meets the condtions for an MCS
 
     Parameters
@@ -142,24 +144,19 @@ def is_track_mcs(features: pd.DataFrame) -> pd.DataFrame:
     pd.DataFrame
         _description_
     """
-    consecutive_precip_max = features.groupby("track").apply(
-        lambda df: max_consecutive_true(
-            df.groupby("time").max_precip.max().to_numpy() >= 10
-        )
-    )
-    consecutive_area_max = features.groupby("track").apply(
-        lambda df: max_consecutive_true(
-            df.groupby("time").area.max().to_numpy() >= 4e10
-        )
-    )
-    max_total_precip = features.groupby("track").apply(
-        lambda df: df.groupby("time").total_precip.sum().max()
-    )
+    consecutive_precip_max = clusters.groupby(["cluster_track_id"]).cluster_max_precip.apply(lambda x:max_consecutive_true(x>=10), include_groups=False)
+    
+    consecutive_area_max = clusters.groupby(["cluster_track_id"]).cluster_area.apply(lambda x:max_consecutive_true(x>=4e10), include_groups=False)
+    
+    max_total_precip = clusters.groupby(["cluster_track_id"]).cluster_total_precip.max()
+    
     is_mcs = np.logical_and.reduce(
         [
             consecutive_precip_max >= 4,
             consecutive_area_max >= 4,
-            max_total_precip >= 2e10,
+            max_total_precip.to_numpy() >= 2e10,
         ]
     )
-    return pd.DataFrame(data=is_mcs, index=consecutive_precip_max.index)
+    mcs_tracks =  pd.Series(data=is_mcs, index=consecutive_precip_max.index)
+    mcs_tracks.index.name="track"
+    return mcs_tracks
