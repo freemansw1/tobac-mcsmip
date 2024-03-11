@@ -271,7 +271,7 @@ if __name__ == "__main__":
     start_time = datetime.now()
     print(start_time, "Commencing MCS detection", flush=True)
     if not save_path.exists():
-        save_path.mkdir()
+        save_path.mkdir(parents=True, exist_ok=True)
 
     print("Model:", model, flush=True)
     print("Season:", season, flush=True)
