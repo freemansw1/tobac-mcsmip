@@ -109,9 +109,7 @@ def main() -> None:
 
     print(datetime.now(), f"Commencing feature detection", flush=True)
     features = tobac.feature_detection_multithreshold(
-        bt,
-        dxy=dxy,
-        **parameters_features,
+        bt, **parameters_features,
     )
 
     # Convert feature_min_BT to float dtype as the default of 'None' means that it will be an object array
