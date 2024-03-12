@@ -3,6 +3,7 @@ import sys
 from datetime import datetime
 import argparse
 import warnings
+import logging
 
 import numpy as np
 import pandas as pd
@@ -116,7 +117,14 @@ def main() -> None:
     features["feature_min_BT"] = features["feature_min_BT"].to_numpy().astype(float)
 
     print(datetime.now(), f"Commencing tracking", flush=True)
-    features = tobac.linking_trackpy(features, bt.to_iris(), dt, dxy, **parameters_tracking)
+    class DisableLogger():
+        def __enter__(self):
+            logging.disable(logging.CRITICAL)
+        def __exit__(self, exit_type, exit_value, exit_traceback):
+            logging.disable(logging.NOTSET)
+
+    with DisableLogger():
+        features = tobac.linking_trackpy(features, bt.to_iris(), dt, dxy, **parameters_tracking)
 
     # Reduce tracks to only valid cells
     features = features[features.cell != -1]
