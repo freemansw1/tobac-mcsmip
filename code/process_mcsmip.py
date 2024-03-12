@@ -100,9 +100,9 @@ def main() -> None:
     ds = ds.assign_coords({MCS.time_dim: ds[MCS.time_dim].astype("datetime64[s]")})
 
     if MCS.convert_olr:
-        bt = get_tb(ds[MCS.bt_var].compute()).to_iris()
+        bt = get_tb(ds[MCS.bt_var].compute())
     else:
-        bt = ds[MCS.bt_var].roll({"lon":1500}, roll_coords=True).compute().to_iris()
+        bt = ds[MCS.bt_var].compute()
 
     dt = 3600  # in seconds
     dxy = 11100  # in meter (for Latitude)
@@ -116,7 +116,7 @@ def main() -> None:
     features["feature_min_BT"] = features["feature_min_BT"].to_numpy().astype(float)
 
     print(datetime.now(), f"Commencing tracking", flush=True)
-    features = tobac.linking_trackpy(features, bt, dt, dxy, **parameters_tracking)
+    features = tobac.linking_trackpy(features, bt.to_iris(), dt, dxy, **parameters_tracking)
 
     # Reduce tracks to only valid cells
     features = features[features.cell != -1]
@@ -133,13 +133,12 @@ def main() -> None:
     features["time_track"] = features.time - track_start_time[features.track].to_numpy()
 
     print(datetime.now(), f"Commencing segmentation", flush=True)
-    segmentation_params = dict(threshold=241, target="minimum", PBC_flag="hdim_2")
     warnings.filterwarnings(
         "ignore",
         category=UserWarning,
         message="Warning: converting a masked element to nan.*",
     )
-    segments, features = tobac.segmentation_2D(features, bt, dxy, **parameters_segments)
+    segments, features = tobac.segmentation.segmentation(features, bt.to_iris(), dxy, **parameters_segments)
 
     features["time"] = xr.CFTimeIndex(features["time"].to_numpy()).to_datetimeindex()
     features["mean_BT"] = features["mean_BT"].to_numpy().astype(float)
