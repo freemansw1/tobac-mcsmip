@@ -195,7 +195,7 @@ def main() -> None:
 
     out_ds["cell_track_id"] = cell_track_id.to_xarray()
     out_ds = xr.merge([out_ds, clusters.to_xarray()])
-    out_ds["is_track_mcs"] = mcs_flag.to_xarray()
+    out_ds["track_is_mcs"] = mcs_flag.to_xarray()
 
     feature_is_mcs = out_ds.track_is_mcs.loc[out_ds.feature_track_id]
 
