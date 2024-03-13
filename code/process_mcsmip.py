@@ -24,12 +24,23 @@ parser.add_argument("-d", help="path to input data", default="../data_in", type=
 parser.add_argument(
     "-s", help="path to save output data", default="../data_out", type=str
 )
+parser.add_argument("--start", help="start date", default=None)
+parser.add_argument("--end", help="end date", default=None)
+
 
 args = parser.parse_args()
 model = args.model
 season = args.season
 data_path = pathlib.Path(args.d)
 save_path = pathlib.Path(args.s)
+
+if season == "summer":
+    start_date = datetime(2016, 8, 1) if args.start is None else datetime.strptime(args.start, "%Y-%m-%d-%H:%M:%S")
+    end_date = datetime(2016, 9, 10) if args.end is None else datetime.strptime(args.end, "%Y-%m-%d-%H:%M:%S")
+
+if season == "winter":
+    start_date = datetime(2020, 1, 20) if args.start is None else datetime.strptime(args.start, "%Y-%m-%d-%H:%M:%S")
+    end_date = datetime(2020, 2, 29) if args.end is None else datetime.strptime(args.end, "%Y-%m-%d-%H:%M:%S")
 
 dt = 3600  # in seconds
 dxy = 11100  # in meter (for Latitude)
@@ -77,8 +88,9 @@ parameters_merge = dict(
 )
 
 def main() -> None:
+    dates = pd.date_range(start_date, end_date, freq="h", inclusive="left")
     if season == "summer":
-        dates = pd.date_range(datetime(2016, 8, 1), datetime(2016, 9, 10), freq="h", inclusive="left")
+        # dates = pd.date_range(datetime(2016, 8, 1), datetime(2016, 9, 10), freq="h", inclusive="left")
         for MCS in data_formats.summer_datasets:
             if MCS.name == model:
                 break
@@ -86,7 +98,7 @@ def main() -> None:
             raise ValueError(f"model {model} not found for season {season}")
 
     if season == "winter":
-        dates = pd.date_range(datetime(2020, 1, 20), datetime(2020, 2, 29), freq="h", inclusive="left")
+        # dates = pd.date_range(datetime(2020, 1, 20), datetime(2020, 2, 29), freq="h", inclusive="left")
         for MCS in data_formats.winter_datasets:
             if MCS.name == model:
                 break
@@ -155,7 +167,7 @@ def main() -> None:
     features = calc_area_and_precip(features, segments, ds, MCS, inplace=True)
 
     features, clusters = process_clusters(features)
-    mcs_flag = is_track_mcs(features)
+    mcs_flag = is_track_mcs(clusters)
 
     # Prepare output dataset
     print(datetime.now(), f"Preparing output", flush=True)
@@ -166,6 +178,7 @@ def main() -> None:
             "cell": "feature_cell_id",
             "track": "feature_track_id",
             "cluster": "feature_cluster_id",
+            "time": "feature_time",
             "hdim_1": "y",
             "hdim_2": "x",
             "num": "detection_pixel_count",
