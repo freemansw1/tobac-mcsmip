@@ -79,7 +79,7 @@ parameters_tracking = dict(
 
 parameters_merge = dict(
     distance=dxy*20, 
-    frame_len=2, 
+    frame_len=0, 
     PBC_flag="hdim_2", 
     min_h1=0, 
     max_h1=1200, 
@@ -111,6 +111,8 @@ def main() -> None:
         files, combine="nested", concat_dim=MCS.time_dim, join="override"
     )
     ds = ds.assign_coords({MCS.time_dim: ds[MCS.time_dim].astype("datetime64[s]")})
+    if MCS.time_dim != "time":
+        ds = ds.rename({MCS.time_dim:"time"})
 
     if MCS.convert_olr:
         bt = get_tb(ds[MCS.bt_var].compute())
